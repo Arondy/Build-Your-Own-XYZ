@@ -26,8 +26,10 @@ func (p Parser) Parse() error {
 	boolFlagsNumber := 0
 	flag.Visit(func(f *flag.Flag) { boolFlagsNumber += 1 })
 
-	if boolFlagsNumber > 1 {
-		return fmt.Errorf("All bool flags are mutually exclusive!")
+	if boolFlagsNumber == 0 {
+		*countBytesFlag = true
+		*countLinesFlag = true
+		*countWordsFlag = true
 	}
 
 	filepath := otherArgs[0]
@@ -36,21 +38,24 @@ func (p Parser) Parse() error {
 		return err
 	}
 
+	if *countLinesFlag {
+		linesNumber := p.WC.CountLines(file)
+		fmt.Print(linesNumber, " ")
+	}
+	if *countWordsFlag {
+		wordsNumber := p.WC.CountWords(file)
+		fmt.Print(wordsNumber, " ")
+	}
 	if *countBytesFlag {
 		bytesNumber := p.WC.CountBytes(file)
-		fmt.Println(bytesNumber, filepath)
-	} else if *countLinesFlag {
-		linesNumber := p.WC.CountLines(file)
-		fmt.Println(linesNumber, filepath)
-	} else if *countWordsFlag {
-		wordsNumber := p.WC.CountWords(file)
-		fmt.Println(wordsNumber, filepath)
-	} else if *countCharactersFlag {
-		charactersNumber := p.WC.CountCharacters(file)
-		fmt.Println(charactersNumber, filepath)
-	} else {
-		return fmt.Errorf("Incorrect arguments provided!")
+		fmt.Print(bytesNumber, " ")
 	}
+	if *countCharactersFlag {
+		charactersNumber := p.WC.CountCharacters(file)
+		fmt.Print(charactersNumber, " ")
+	}
+
+	fmt.Print(filepath)
 
 	return nil
 }
