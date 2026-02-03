@@ -19,9 +19,6 @@ func (p Parser) Parse() error {
 	flag.Parse()
 
 	otherArgs := flag.Args()
-	if len(otherArgs) == 0 {
-		return fmt.Errorf("No file provided!")
-	}
 
 	boolFlagsNumber := 0
 	flag.Visit(func(f *flag.Flag) { boolFlagsNumber += 1 })
@@ -32,10 +29,21 @@ func (p Parser) Parse() error {
 		*countWordsFlag = true
 	}
 
-	filepath := otherArgs[0]
-	file, err := p.WC.GetFileContents(filepath)
-	if err != nil {
-		return err
+	var file []byte
+	var err error
+	filepath := ""
+
+	if len(otherArgs) == 0 {
+		file, err = p.WC.GetStdinContents()
+		if err != nil {
+			return err
+		}
+	} else {
+		filepath = otherArgs[0]
+		file, err = p.WC.GetFileContents(filepath)
+		if err != nil {
+			return err
+		}
 	}
 
 	if *countLinesFlag {
@@ -55,7 +63,9 @@ func (p Parser) Parse() error {
 		fmt.Print(charactersNumber, " ")
 	}
 
-	fmt.Print(filepath)
+	if len(otherArgs) != 0 {
+		fmt.Print(filepath)
+	}
 
 	return nil
 }

@@ -3,6 +3,7 @@ package wc
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 )
@@ -18,6 +19,16 @@ func (wc WordCount) GetFileContents(filepath string) (contents []byte, err error
 	}
 
 	return file, nil
+}
+
+func (wc WordCount) GetStdinContents() (contents []byte, err error) {
+	bytes, err := io.ReadAll(os.Stdin)
+
+	if err != nil {
+		return nil, fmt.Errorf("error reading stdin: %w", err)
+	}
+
+	return bytes, nil
 }
 
 func (wc WordCount) CountBytes(file []byte) int {
