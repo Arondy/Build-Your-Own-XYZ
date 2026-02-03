@@ -13,7 +13,8 @@ type Parser struct {
 func (p Parser) Parse() error {
 	countBytesFlag := flag.Bool("c", false, "count bytes in file")
 	countLinesFlag := flag.Bool("l", false, "count lines in file")
-	countWordsFlag := flag.Bool("w", true, "count words in file")
+	countWordsFlag := flag.Bool("w", false, "count words in file")
+	countCharactersFlag := flag.Bool("m", false, "count characters in file")
 
 	flag.Parse()
 
@@ -44,6 +45,9 @@ func (p Parser) Parse() error {
 	} else if *countWordsFlag {
 		wordsNumber := p.WC.CountWords(file)
 		fmt.Println(wordsNumber, filepath)
+	} else if *countCharactersFlag {
+		charactersNumber := p.WC.CountCharacters(file)
+		fmt.Println(charactersNumber, filepath)
 	} else {
 		return fmt.Errorf("Incorrect arguments provided!")
 	}

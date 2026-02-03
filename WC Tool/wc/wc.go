@@ -47,3 +47,25 @@ func (wc WordCount) CountWords(file []byte) int {
 
 	return wordsNumber
 }
+
+func (wc WordCount) CountCharacters(file []byte) int {
+	charachterNumber := 0
+	skipBytes := 0
+
+	for _, char := range file {
+		if skipBytes != 0 {
+			skipBytes--
+			continue
+		}
+
+		if char>>5 == 0b110 {
+			skipBytes = 1
+		} else if char>>4 == 0b1110 {
+			skipBytes = 2
+		} else if char>>3 == 0b11110 {
+			skipBytes = 3
+		}
+		charachterNumber += 1
+	}
+	return charachterNumber
+}
