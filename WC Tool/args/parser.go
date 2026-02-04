@@ -45,8 +45,6 @@ func (p Parser) Parse() error {
 
 	flag.Parse()
 
-	otherArgs := flag.Args()
-
 	boolFlagsNumber := 0
 	flag.Visit(func(f *flag.Flag) { boolFlagsNumber += 1 })
 
@@ -56,45 +54,56 @@ func (p Parser) Parse() error {
 		*countWordsFlag = true
 	}
 
-	var file []byte
-	var err error
-	filepath := ""
+	otherArgs := flag.Args()
 
 	if len(otherArgs) == 0 {
-		file, err = p.WC.GetStdinContents()
+		otherArgs = append(otherArgs, "-")
+	}
+
+	results := make([]Result, 0, len(otherArgs))
+	maxBytesNumber := 0
+
+	for _, filepath := range otherArgs {
+		file, err := p.WC.GetContents(filepath)
 		if err != nil {
 			return err
 		}
-	} else {
-		filepath = otherArgs[0]
-		file, err = p.WC.GetFileContents(filepath)
-		if err != nil {
-			return err
-		}
-	}
 
-	res := Result{filepath, -1, -1, -1, -1}
-	bytesNumber := p.WC.CountBytes(file)
-	numberStringWidth := int(math.Log10(float64(bytesNumber))) + 1
-
-	if *countLinesFlag {
-		linesNumber := p.WC.CountLines(file)
-		res.lines = linesNumber
-	}
-	if *countWordsFlag {
-		wordsNumber := p.WC.CountWords(file)
-		res.words = wordsNumber
-	}
-	if *countBytesFlag {
+		res := Result{filepath, -1, -1, -1, -1}
 		bytesNumber := p.WC.CountBytes(file)
-		res.bytes = bytesNumber
-	}
-	if *countCharactersFlag {
-		charactersNumber := p.WC.CountCharacters(file)
-		res.characters = charactersNumber
+
+		if bytesNumber > maxBytesNumber {
+			maxBytesNumber = bytesNumber
+		}
+
+		if *countLinesFlag {
+			linesNumber := p.WC.CountLines(file)
+			res.lines = linesNumber
+		}
+		if *countWordsFlag {
+			wordsNumber := p.WC.CountWords(file)
+			res.words = wordsNumber
+		}
+		if *countBytesFlag {
+			res.bytes = bytesNumber
+		}
+		if *countCharactersFlag {
+			charactersNumber := p.WC.CountCharacters(file)
+			res.characters = charactersNumber
+		}
+
+		results = append(results, res)
 	}
 
-	res.Print(numberStringWidth)
+	numberStringWidth := int(math.Log10(float64(maxBytesNumber))) + 1
+
+	for i, res := range results {
+		res.Print(numberStringWidth)
+
+		if i != len(results)-1 {
+			fmt.Println()
+		}
+	}
 
 	return nil
 }

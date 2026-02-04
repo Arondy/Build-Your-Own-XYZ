@@ -11,7 +11,7 @@ import (
 type WordCount struct {
 }
 
-func (wc WordCount) GetFileContents(filepath string) (contents []byte, err error) {
+func (wc WordCount) getFileContents(filepath string) (contents []byte, err error) {
 	file, err := os.ReadFile(filepath)
 
 	if err != nil {
@@ -21,7 +21,7 @@ func (wc WordCount) GetFileContents(filepath string) (contents []byte, err error
 	return file, nil
 }
 
-func (wc WordCount) GetStdinContents() (contents []byte, err error) {
+func (wc WordCount) getStdinContents() (contents []byte, err error) {
 	bytes, err := io.ReadAll(os.Stdin)
 
 	if err != nil {
@@ -29,6 +29,14 @@ func (wc WordCount) GetStdinContents() (contents []byte, err error) {
 	}
 
 	return bytes, nil
+}
+
+func (wc WordCount) GetContents(filepath string) (contents []byte, err error) {
+	if filepath == "-" {
+		return wc.getStdinContents()
+	} else {
+		return wc.getFileContents(filepath)
+	}
 }
 
 func (wc WordCount) CountBytes(file []byte) int {
