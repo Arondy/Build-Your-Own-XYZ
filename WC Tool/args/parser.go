@@ -3,6 +3,7 @@ package args
 import (
 	"flag"
 	"fmt"
+	"math"
 	"wc_tool/wc"
 )
 
@@ -10,11 +11,37 @@ type Parser struct {
 	WC wc.WordCount
 }
 
+type Result struct {
+	file       string
+	lines      int
+	words      int
+	bytes      int
+	characters int
+}
+
+func (r Result) Print(numberStringWidth int) {
+	if r.lines != -1 {
+		fmt.Printf("%*d ", numberStringWidth, r.lines)
+	}
+	if r.words != -1 {
+		fmt.Printf("%*d ", numberStringWidth, r.words)
+	}
+	if r.bytes != -1 {
+		fmt.Printf("%*d ", numberStringWidth, r.bytes)
+	}
+	if r.characters != -1 {
+		fmt.Printf("%*d ", numberStringWidth, r.characters)
+	}
+	if r.file != "" {
+		fmt.Print(r.file)
+	}
+}
+
 func (p Parser) Parse() error {
-	countBytesFlag := flag.Bool("c", false, "count bytes in file")
-	countLinesFlag := flag.Bool("l", false, "count lines in file")
-	countWordsFlag := flag.Bool("w", false, "count words in file")
-	countCharactersFlag := flag.Bool("m", false, "count characters in file")
+	countBytesFlag := flag.Bool("c", false, "count bytes")
+	countLinesFlag := flag.Bool("l", false, "count lines")
+	countWordsFlag := flag.Bool("w", false, "count words")
+	countCharactersFlag := flag.Bool("m", false, "count characters")
 
 	flag.Parse()
 
@@ -46,26 +73,28 @@ func (p Parser) Parse() error {
 		}
 	}
 
+	res := Result{filepath, -1, -1, -1, -1}
+	bytesNumber := p.WC.CountBytes(file)
+	numberStringWidth := int(math.Log10(float64(bytesNumber))) + 1
+
 	if *countLinesFlag {
 		linesNumber := p.WC.CountLines(file)
-		fmt.Print(linesNumber, " ")
+		res.lines = linesNumber
 	}
 	if *countWordsFlag {
 		wordsNumber := p.WC.CountWords(file)
-		fmt.Print(wordsNumber, " ")
+		res.words = wordsNumber
 	}
 	if *countBytesFlag {
 		bytesNumber := p.WC.CountBytes(file)
-		fmt.Print(bytesNumber, " ")
+		res.bytes = bytesNumber
 	}
 	if *countCharactersFlag {
 		charactersNumber := p.WC.CountCharacters(file)
-		fmt.Print(charactersNumber, " ")
+		res.characters = charactersNumber
 	}
 
-	if len(otherArgs) != 0 {
-		fmt.Print(filepath)
-	}
+	res.Print(numberStringWidth)
 
 	return nil
 }
