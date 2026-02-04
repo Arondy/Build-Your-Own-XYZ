@@ -20,16 +20,16 @@ type Result struct {
 }
 
 func (r Result) Print(numberStringWidth int) {
-	if r.lines != -1 {
+	if r.lines >= 0 {
 		fmt.Printf("%*d ", numberStringWidth, r.lines)
 	}
-	if r.words != -1 {
+	if r.words >= 0 {
 		fmt.Printf("%*d ", numberStringWidth, r.words)
 	}
-	if r.bytes != -1 {
+	if r.bytes >= 0 {
 		fmt.Printf("%*d ", numberStringWidth, r.bytes)
 	}
-	if r.characters != -1 {
+	if r.characters >= 0 {
 		fmt.Printf("%*d ", numberStringWidth, r.characters)
 	}
 	if r.file != "" {
@@ -61,7 +61,8 @@ func (p Parser) Parse() error {
 	}
 
 	results := make([]Result, 0, len(otherArgs))
-	maxBytesNumber := 0
+	total := Result{file: "total"}
+	totalBytesNumber := 0
 
 	for _, filepath := range otherArgs {
 		file, err := p.WC.GetContents(filepath)
@@ -71,10 +72,7 @@ func (p Parser) Parse() error {
 
 		res := Result{filepath, -1, -1, -1, -1}
 		bytesNumber := p.WC.CountBytes(file)
-
-		if bytesNumber > maxBytesNumber {
-			maxBytesNumber = bytesNumber
-		}
+		totalBytesNumber += bytesNumber
 
 		if *countLinesFlag {
 			linesNumber := p.WC.CountLines(file)
@@ -93,16 +91,27 @@ func (p Parser) Parse() error {
 		}
 
 		results = append(results, res)
+		total.lines += res.lines
+		total.words += res.words
+		total.bytes += res.bytes
+		total.characters += res.characters
 	}
 
-	numberStringWidth := int(math.Log10(float64(maxBytesNumber))) + 1
+	areMultipleFiles := len(otherArgs) != 1
+	numberStringWidth := 1
+	if totalBytesNumber != 0 {
+		numberStringWidth = int(math.Log10(float64(totalBytesNumber))) + 1
+	}
 
-	for i, res := range results {
+	for _, res := range results {
 		res.Print(numberStringWidth)
 
-		if i != len(results)-1 {
+		if areMultipleFiles {
 			fmt.Println()
 		}
+	}
+	if areMultipleFiles {
+		total.Print(numberStringWidth)
 	}
 
 	return nil
