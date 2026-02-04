@@ -68,7 +68,7 @@ func (wc WordCount) CountWords(file []byte) int {
 }
 
 func (wc WordCount) CountCharacters(file []byte) int {
-	charachterNumber := 0
+	characterNumber := 0
 	skipBytes := 0
 
 	for _, char := range file {
@@ -84,7 +84,7 @@ func (wc WordCount) CountCharacters(file []byte) int {
 		} else if char>>3 == 0b11110 {
 			skipBytes = 3
 		}
-		charachterNumber += 1
+		characterNumber += 1
 	}
-	return charachterNumber
+	return characterNumber
 }
