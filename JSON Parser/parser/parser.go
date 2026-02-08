@@ -10,12 +10,24 @@ type Parser struct {
 	position int
 }
 
+var canBeValue = []TokenType{STRING, NUMBER, TRUE, FALSE, NULL}
+var canFollowPair = []TokenType{COMMA, RIGHT_BRACE}
+
 func (p *Parser) Parse() error {
 	if len(p.Tokens) == 0 {
 		return fmt.Errorf("empty sequence provided!")
 	}
 	if err := p.parseToken(); err != nil {
 		return err
+	}
+	if p.position != len(p.Tokens) {
+		tokensStr := ""
+
+		for _, token := range p.Tokens[p.position:len(p.Tokens)] {
+			tokensStr += token.Type.String()
+		}
+
+		return fmt.Errorf("unexpected tokens after ending '}': '%s'", tokensStr)
 	}
 
 	return nil
@@ -43,14 +55,8 @@ func (p *Parser) parseToken() error {
 		return p.parseMap()
 	case STRING:
 		return p.parseObject()
-	case COMMA:
-		if err := p.safeIncrementPosition(); err != nil {
-			return err
-		}
-
-		return p.parseObject()
 	default:
-		return fmt.Errorf("unexpected token type: %v", p.Tokens[p.position-1].Type)
+		return fmt.Errorf("unexpected token type: '%s'", p.Tokens[p.position-1].Type)
 	}
 }
 
@@ -62,10 +68,6 @@ func (p *Parser) parseMap() error {
 	}
 
 	p.position++
-
-	if p.position != len(p.Tokens) {
-		return fmt.Errorf("unexpected tokens after ending '}': '%v'", p.Tokens[p.position:len(p.Tokens)])
-	}
 	return nil
 }
 
@@ -73,7 +75,7 @@ func (p *Parser) parseObject() error {
 	currentToken := p.Tokens[p.position]
 
 	if currentToken.Type != COLON {
-		return fmt.Errorf("no colon after key, found '%v' instead", currentToken.Type)
+		return fmt.Errorf("no ':' after key, found '%v' instead", currentToken.Type)
 	}
 
 	if err := p.safeIncrementPosition(); err != nil {
@@ -81,12 +83,22 @@ func (p *Parser) parseObject() error {
 	}
 	currentToken = p.Tokens[p.position]
 
-	if !slices.Contains([]TokenType{STRING, NUMBER, TRUE, FALSE, NULL}, currentToken.Type) {
+	if !slices.Contains(canBeValue, currentToken.Type) {
 		return fmt.Errorf("no value after colon, found '%v' instead", currentToken.Type)
 	}
 
 	if err := p.safeIncrementPosition(); err != nil {
 		return err
 	}
+
+	currentToken = p.Tokens[p.position]
+
+	if currentToken.Type == COMMA {
+		if err := p.safeIncrementPosition(); err != nil {
+			return err
+		}
+		return p.parseToken()
+	}
+
 	return nil
 }

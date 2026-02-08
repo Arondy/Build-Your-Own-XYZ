@@ -67,6 +67,7 @@ func TestStep2(t *testing.T) {
 			{name: "no quotes for string key", json: []byte("{key: \"value\"}"), wantLexErr: true, wantParseErr: false},
 			{name: "no quotes for string value", json: []byte("{\"key\": value}"), wantLexErr: true, wantParseErr: false},
 			{name: "token after very end", json: []byte("{} {}"), wantLexErr: false, wantParseErr: true},
+			{name: "comma upfront", json: []byte("{,\"key\": \"value\"}"), wantLexErr: false, wantParseErr: true},
 			{name: "comma in the very end", json: []byte("{\"key\": \"value\"},"), wantLexErr: false, wantParseErr: true},
 			{name: "trailing comma after last object", json: []byte("{\"key\": \"value\",}"), wantLexErr: false, wantParseErr: true},
 		},
