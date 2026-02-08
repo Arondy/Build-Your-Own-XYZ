@@ -1,6 +1,9 @@
 package parser
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 type Parser struct {
 	Tokens   []Token
@@ -78,7 +81,7 @@ func (p *Parser) parseObject() error {
 	}
 	currentToken = p.Tokens[p.position]
 
-	if currentToken.Type != STRING {
+	if !slices.Contains([]TokenType{STRING, NUMBER, TRUE, FALSE, NULL}, currentToken.Type) {
 		return fmt.Errorf("no value after colon, found '%v' instead", currentToken.Type)
 	}
 

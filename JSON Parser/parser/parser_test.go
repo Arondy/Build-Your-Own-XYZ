@@ -74,3 +74,38 @@ func TestStep2(t *testing.T) {
 
 	testCases(t, tests)
 }
+
+func TestStep3(t *testing.T) {
+	tests := map[string][]Test{
+		"Valid cases": {
+			{name: "different type values", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: false, wantParseErr: false},
+			{name: "float number", json: []byte("{\"key\": 101.12345}"), wantLexErr: false, wantParseErr: false},
+			{name: "float number starts with 0", json: []byte("{\"key\": 0.12345}"), wantLexErr: false, wantParseErr: false},
+			{name: "exponential with int base number", json: []byte("{\"key\": 12e6}"), wantLexErr: false, wantParseErr: false},
+			{name: "exponential with float base number", json: []byte("{\"key\": 1.2e6}"), wantLexErr: false, wantParseErr: false},
+			{name: "exponential plus number", json: []byte("{\"key\": 2e+6}"), wantLexErr: false, wantParseErr: false},
+			{name: "exponential minus number", json: []byte("{\"key\": 2e-6}"), wantLexErr: false, wantParseErr: false},
+			{name: "exponential minus number with minus base", json: []byte("{\"key\": -2e-6}"), wantLexErr: false, wantParseErr: false},
+		},
+		"Invalid cases: bool, null": {
+			{name: "typo in true", json: []byte("{\"key1\": truE,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: true, wantParseErr: false},
+			{name: "typo in true 2", json: []byte("{\"key1\": trueF,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: true, wantParseErr: false},
+			{name: "typo in false", json: []byte("{\"key1\": true,\"key2\": False,\"key3\": null,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: true, wantParseErr: false},
+			{name: "typo in false 2", json: []byte("{\"key1\": true,\"key2\": fal2se,\"key3\": null,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: true, wantParseErr: false},
+			{name: "typo in null", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": nUll,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: true, wantParseErr: false},
+			{name: "typo in null 2", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": nullnull,\"key4\": \"value\",\"key5\": 101}"), wantLexErr: false, wantParseErr: true},
+		},
+		"Invalid cases: numbers": {
+			{name: "0 first digit", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 01.2}"), wantLexErr: true, wantParseErr: false},
+			{name: "dot in the end", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 1.}"), wantLexErr: true, wantParseErr: false},
+			{name: "dot upfront", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": .1}"), wantLexErr: true, wantParseErr: false},
+			{name: "several minuses", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": --1.1}"), wantLexErr: true, wantParseErr: false},
+			{name: "minus after dot", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 1.-1}"), wantLexErr: true, wantParseErr: false},
+			{name: "with float exponent", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 2e1.1}"), wantLexErr: true, wantParseErr: false},
+			{name: "minus in the end", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 2e1-}"), wantLexErr: true, wantParseErr: false},
+			{name: "unfinished exponent", json: []byte("{\"key1\": true,\"key2\": false,\"key3\": null,\"key4\": \"value\",\"key5\": 2e}"), wantLexErr: true, wantParseErr: false},
+		},
+	}
+
+	testCases(t, tests)
+}
