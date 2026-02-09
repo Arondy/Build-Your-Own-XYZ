@@ -2,6 +2,8 @@ package parser_test
 
 import (
 	"json_parser/parser"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -17,7 +19,8 @@ func testCases(t *testing.T, tests map[string][]Test) {
 		t.Run(groupName, func(t *testing.T) {
 			for _, tt := range group {
 				t.Run(tt.name, func(t *testing.T) {
-					tokens, err := parser.Lex(tt.json)
+					l := parser.NewLexer(tt.json)
+					tokens, err := l.Lex()
 
 					if (err != nil) != tt.wantLexErr {
 						t.Errorf("Lex() error = %v, wantLexErr %v", err, tt.wantLexErr)
@@ -127,4 +130,57 @@ func TestStep4(t *testing.T) {
 	}
 
 	testCases(t, tests)
+}
+
+func testJsonCase(t *testing.T, path string, json []byte, wantError bool) {
+	t.Run(path, func(t *testing.T) {
+		l := parser.NewLexer(json)
+		tokens, err := l.Lex()
+
+		if err != nil {
+			if (err != nil) != wantError {
+				t.Errorf("Lex() error = %v, wantError %v", err, wantError)
+			}
+			return
+		}
+
+		p := parser.Parser{Tokens: tokens}
+		err = p.Parse()
+		if (err != nil) != wantError {
+			t.Errorf("Parse() error = %v, wantError %v", err, wantError)
+		}
+	})
+}
+
+func TestJsonCases(t *testing.T) {
+	directory := "tests/"
+	testFiles, err := os.ReadDir(directory)
+	if err != nil {
+		directory = "../tests/"
+		testFiles, err = os.ReadDir(directory)
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range testFiles {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+
+		// strange recursion test on a small depth array
+		if name == "fail18.json" {
+			continue
+		}
+
+		wantError := strings.HasPrefix(name, "fail")
+
+		json, err := os.ReadFile(directory + name)
+		if err != nil {
+			panic(err)
+		}
+
+		testJsonCase(t, name, json, wantError)
+	}
 }

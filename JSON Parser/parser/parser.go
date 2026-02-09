@@ -118,6 +118,10 @@ func (p *Parser) parseArray() error {
 		}
 	}
 
+	if p.Tokens[p.position].Type != RIGHT_BRACKET {
+		return fmt.Errorf("wrong token type instead of ']': %s", p.Tokens[p.position].Type)
+	}
+
 	if p.Tokens[p.position-1].Type == COMMA {
 		return fmt.Errorf("trailing ',' in array")
 	}

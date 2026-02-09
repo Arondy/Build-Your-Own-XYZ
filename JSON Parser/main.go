@@ -8,10 +8,10 @@ import (
 
 func main() {
 	json := []byte("{}")
+	l := parser.NewLexer(json)
+	tokens, err := l.Lex()
 
-	tokens, err := parser.Lex(json)
 	p := parser.Parser{Tokens: tokens}
-
 	err = p.Parse()
 	if err != nil {
 		fmt.Printf("Error: %s", err)
