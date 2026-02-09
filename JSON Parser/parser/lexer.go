@@ -7,6 +7,8 @@ type TokenType int
 const (
 	LEFT_BRACE TokenType = iota
 	RIGHT_BRACE
+	LEFT_BRACKET
+	RIGHT_BRACKET
 	WHITESPACE
 	STRING
 	COLON
@@ -18,16 +20,18 @@ const (
 )
 
 var tokenTypeNames = map[TokenType]string{
-	LEFT_BRACE:  "{",
-	RIGHT_BRACE: "}",
-	WHITESPACE:  " ",
-	STRING:      "string",
-	COLON:       ":",
-	COMMA:       ",",
-	TRUE:        "true",
-	FALSE:       "false",
-	NULL:        "null",
-	NUMBER:      "number",
+	LEFT_BRACE:    "{",
+	RIGHT_BRACE:   "}",
+	LEFT_BRACKET:  "[",
+	RIGHT_BRACKET: "]",
+	WHITESPACE:    " ",
+	STRING:        "string",
+	COLON:         ":",
+	COMMA:         ",",
+	TRUE:          "true",
+	FALSE:         "false",
+	NULL:          "null",
+	NUMBER:        "number",
 }
 
 func (t TokenType) String() string {
@@ -37,6 +41,8 @@ func (t TokenType) String() string {
 var charToType = map[byte]TokenType{
 	'{': LEFT_BRACE,
 	'}': RIGHT_BRACE,
+	'[': LEFT_BRACKET,
+	']': RIGHT_BRACKET,
 	':': COLON,
 	',': COMMA,
 }
@@ -190,7 +196,7 @@ func Lex(contents []byte) (tokens []Token, err error) {
 		}
 
 		switch char {
-		case '{', '}', ':', ',':
+		case '{', '}', '[', ']', ':', ',':
 			tokens = append(tokens, Token{
 				Type: charToType[char],
 			})

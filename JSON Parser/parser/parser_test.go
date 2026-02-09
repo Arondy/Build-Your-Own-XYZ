@@ -110,3 +110,21 @@ func TestStep3(t *testing.T) {
 
 	testCases(t, tests)
 }
+
+func TestStep4(t *testing.T) {
+	tests := map[string][]Test{
+		"Valid cases": {
+			{name: "different type values", json: []byte("{\"key\": \"value\",\"key-n\": 101,\"key-o\": {\"inner key\": \"inner value\"},\"key-l\": [1, 100, \"2\", null, {\"s\": 1e9}]}"), wantLexErr: false, wantParseErr: false},
+			{name: "array instead of map", json: []byte("[]"), wantLexErr: false, wantParseErr: false},
+		},
+		"Invalid cases": {
+			{name: "no closing bracket", json: []byte("["), wantLexErr: false, wantParseErr: true},
+			{name: "no closing bracket 2", json: []byte("{\"key\": [}"), wantLexErr: false, wantParseErr: true},
+			{name: "no opening bracket", json: []byte("]"), wantLexErr: false, wantParseErr: true},
+			{name: "trailing comma", json: []byte("{\"key\": [1, 2,]}"), wantLexErr: false, wantParseErr: true},
+			{name: "single quotes", json: []byte("{\"key\": 'value'}"), wantLexErr: true, wantParseErr: false},
+		},
+	}
+
+	testCases(t, tests)
+}
