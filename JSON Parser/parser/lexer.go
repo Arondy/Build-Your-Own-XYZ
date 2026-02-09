@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 type TokenType int
@@ -66,8 +67,26 @@ var stringToType = map[string]TokenType{
 }
 
 type Token struct {
-	Type  TokenType
-	Value string
+	Type             TokenType
+	Value            string
+	Line             int
+	RelativePosition int
+}
+
+func (t Token) String() string {
+	str := strings.Builder{}
+	fmt.Fprintf(&str, "'%s' ", t.Type)
+
+	if t.Value != "" {
+		if t.Type == STRING {
+			fmt.Fprintf(&str, "(\"%s\") ", t.Value)
+		} else {
+			fmt.Fprintf(&str, "(%s) ", t.Value)
+		}
+	}
+
+	fmt.Fprintf(&str, "in line %d, in position %d", t.Line, t.RelativePosition)
+	return str.String()
 }
 
 func isDigit(char byte) bool {
@@ -94,15 +113,23 @@ func (l *Lexer) getLineRelativePosition() int {
 	return l.position - l.lineStartPosition + 1
 }
 
+func (l *Lexer) getPositionString() string {
+	return fmt.Sprintf("in line %d, position %d", l.line, l.getLineRelativePosition())
+}
+
+func (l *Lexer) newToken(_type TokenType) Token {
+	return Token{Type: _type, Line: l.line, RelativePosition: l.getLineRelativePosition()}
+}
+
 func (l *Lexer) readString() error {
-	token := Token{Type: STRING}
+	token := l.newToken(STRING)
 	l.position++
 
 	for l.position < len(l.jsonStr) && l.jsonStr[l.position] != '"' {
 		char := l.jsonStr[l.position]
 
 		if char == '\t' || char == '\n' {
-			return fmt.Errorf("'%c' isn't allowed in string in line %d, position %d", char, l.line, l.getLineRelativePosition())
+			return fmt.Errorf("'%s' isn't allowed in string %s", string(char), l.getPositionString())
 		}
 
 		token.Value += string(char)
@@ -112,7 +139,7 @@ func (l *Lexer) readString() error {
 			char = l.jsonStr[l.position]
 
 			if !slices.Contains(canFollowBackslash, char) {
-				return fmt.Errorf("wrong token '%c' after '\\' in line %d, position %d", char, l.line, l.getLineRelativePosition())
+				return fmt.Errorf("wrong token '%s' after '\\' %s", string(char), l.getPositionString())
 			}
 
 			token.Value += string(char)
@@ -123,7 +150,7 @@ func (l *Lexer) readString() error {
 					char = l.jsonStr[l.position]
 
 					if !isHex(char) {
-						return fmt.Errorf("non-hex token '%c' after '\\u' in line %d, position %d", char, l.line, l.getLineRelativePosition())
+						return fmt.Errorf("non-hex token '%s' after '\\u' %s", string(char), l.getPositionString())
 					}
 
 					l.position++
@@ -133,7 +160,7 @@ func (l *Lexer) readString() error {
 	}
 
 	if l.position == len(l.jsonStr) {
-		return fmt.Errorf("no closing ' \" ' at the end of string in line %d, position %d: '%c' instead", l.line, l.getLineRelativePosition(), l.jsonStr[l.position-1])
+		return fmt.Errorf("no closing ' \" ' at the end of string %s: '%s' instead", l.getPositionString(), string(l.jsonStr[l.position-1]))
 	}
 
 	l.tokens = append(l.tokens, token)
@@ -145,16 +172,16 @@ func (l *Lexer) readWord() error {
 	expectedWord := charToString[char]
 
 	if len(l.jsonStr) < l.position+len(expectedWord) {
-		return fmt.Errorf("wrong token '%c' in line %d, position %d", char, l.line, l.getLineRelativePosition())
+		return fmt.Errorf("wrong token '%s' %s", string(char), l.getPositionString())
 	}
 
 	actualWord := l.jsonStr[l.position : l.position+len(expectedWord)]
 
 	if actualWord != expectedWord {
-		return fmt.Errorf("wrong token sequence '%v' starting from line %d, position %d: '%s' expected", actualWord, l.line, l.getLineRelativePosition(), expectedWord)
+		return fmt.Errorf("wrong token sequence '%s' starting %s: '%s' expected", actualWord, l.getPositionString(), expectedWord)
 	}
 
-	l.tokens = append(l.tokens, Token{Type: stringToType[expectedWord]})
+	l.tokens = append(l.tokens, l.newToken(stringToType[expectedWord]))
 	l.position += len(expectedWord) - 1
 	return nil
 }
@@ -164,7 +191,7 @@ func (l *Lexer) appendCharThenIncrementPosition(value *[]byte) (byte, error) {
 
 	l.position++
 	if l.position >= len(l.jsonStr) {
-		return 0, fmt.Errorf("unexpected end of tokens in line %d, position %d", l.line, l.getLineRelativePosition())
+		return 0, fmt.Errorf("unexpected end of tokens %s", l.getPositionString())
 	}
 
 	return l.jsonStr[l.position], nil
@@ -175,6 +202,7 @@ func (l *Lexer) readNumber() error {
 	value := make([]byte, 0)
 	startsWithZero := char == '0'
 	isNegative := char == '-'
+	token := l.newToken(NUMBER)
 	char, err := l.appendCharThenIncrementPosition(&value)
 	if err != nil {
 		return err
@@ -185,7 +213,7 @@ func (l *Lexer) readNumber() error {
 		startsWithZero = char == '0'
 
 		if !isDigit(char) {
-			return fmt.Errorf("no digit after '-' in the number in line %d, position %d: found '%v' instead", l.line, l.getLineRelativePosition(), char)
+			return fmt.Errorf("no digit after '-' in the number %s: found '%s' instead", l.getPositionString(), string(char))
 		}
 		if char, err = l.appendCharThenIncrementPosition(&value); err != nil {
 			return err
@@ -201,13 +229,14 @@ func (l *Lexer) readNumber() error {
 	}
 
 	if startsWithZero && slices.Contains(canFollowValueChar, char) {
-		l.tokens = append(l.tokens, Token{Type: NUMBER, Value: string(value)})
+		token.Value = string(value)
+		l.tokens = append(l.tokens, token)
 		return nil
 	}
 
 	// 0.x
 	if startsWithZero && !slices.Contains([]byte{'e', 'E', '.'}, char) {
-		return fmt.Errorf("no 'e', 'E' or '.' after starting '0' in the number in line %d, position %d: found '%v' instead", l.line, l.getLineRelativePosition(), char)
+		return fmt.Errorf("no 'e', 'E' or '.' after starting '0' in the number %s: found '%s' instead", l.getPositionString(), string(char))
 	}
 
 	if char == '.' {
@@ -215,7 +244,7 @@ func (l *Lexer) readNumber() error {
 			return err
 		}
 		if !isDigit(char) {
-			return fmt.Errorf("no digit after '.' in the number in line %d, position %d: found '%v' instead", l.line, l.getLineRelativePosition(), char)
+			return fmt.Errorf("no digit after '.' in the number %s: found '%s' instead", l.getPositionString(), string(char))
 
 		}
 		for isDigit(char) {
@@ -226,7 +255,7 @@ func (l *Lexer) readNumber() error {
 	}
 
 	if value[len(value)-1] == '.' {
-		return fmt.Errorf("no digit after '.' in the number in line %d, position %d: found '%v' instead", l.line, l.getLineRelativePosition(), char)
+		return fmt.Errorf("no digit after '.' in the number %s: found '%s' instead", l.getPositionString(), string(char))
 	}
 
 	// e(+-)?x
@@ -248,11 +277,12 @@ func (l *Lexer) readNumber() error {
 		}
 	}
 	if !isDigit(value[len(value)-1]) {
-		return fmt.Errorf("no digit after 'e' in the number in line %d, position %d: found '%v' instead", l.line, l.getLineRelativePosition(), char)
+		return fmt.Errorf("no digit after 'e' in the number %s: found '%s' instead", l.getPositionString(), string(char))
 	}
-	l.position--
 
-	l.tokens = append(l.tokens, Token{Type: NUMBER, Value: string(value)})
+	l.position--
+	token.Value = string(value)
+	l.tokens = append(l.tokens, token)
 	return nil
 }
 
@@ -269,9 +299,7 @@ func (l *Lexer) Lex() (tokens []Token, err error) {
 
 		switch char {
 		case '{', '}', '[', ']', ':', ',':
-			l.tokens = append(l.tokens, Token{
-				Type: charToType[char],
-			})
+			l.tokens = append(l.tokens, l.newToken(charToType[char]))
 		case '"':
 			if err := l.readString(); err != nil {
 				return nil, err
@@ -287,7 +315,7 @@ func (l *Lexer) Lex() (tokens []Token, err error) {
 			}
 
 		default:
-			return nil, fmt.Errorf("wrong token '%c' in line %d, position %d", l.line, l.position-l.lineStartPosition, char)
+			return nil, fmt.Errorf("wrong token '%s' %s", string(char), l.getPositionString())
 		}
 	}
 

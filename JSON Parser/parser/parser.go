@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 type Parser struct {
@@ -21,13 +22,14 @@ func (p *Parser) Parse() error {
 		return err
 	}
 	if p.position != len(p.Tokens) {
-		tokensStr := ""
+		tokensStr := strings.Builder{}
 
 		for _, token := range p.Tokens[p.position:len(p.Tokens)] {
-			tokensStr += token.Type.String()
+			tokensStr.WriteString(token.Type.String())
 		}
 
-		return fmt.Errorf("unexpected tokens after ending '}': '%s'", tokensStr)
+		token := p.Tokens[p.position]
+		return fmt.Errorf("unexpected tokens after ending '}' starting from line %d, position %d: '%s'", token.Line, token.RelativePosition, tokensStr.String())
 	}
 
 	return nil
@@ -37,7 +39,8 @@ func (p *Parser) safeIncrementPosition() error {
 	p.position++
 
 	if p.position >= len(p.Tokens) {
-		return fmt.Errorf("reached unexpected tokens end (%d)", p.position)
+		token := p.Tokens[len(p.Tokens)-1]
+		return fmt.Errorf("reached unexpected tokens end, last token: %s", token)
 	}
 
 	return nil
@@ -54,7 +57,8 @@ func (p *Parser) parseToken() error {
 	case STRING:
 		return p.parseMultiplePairs()
 	default:
-		return fmt.Errorf("unexpected token type: '%s'", p.Tokens[p.position].Type)
+		token := p.Tokens[p.position]
+		return fmt.Errorf("unexpected token %s", token)
 	}
 }
 
@@ -77,7 +81,8 @@ func (p *Parser) parseValue() error {
 	currentToken := p.Tokens[p.position]
 
 	if !slices.Contains(canBeValue, currentToken.Type) {
-		return fmt.Errorf("unexpected token: '%s' can't be value", currentToken.Type)
+		token := p.Tokens[p.position]
+		return fmt.Errorf("unexpected token can't be value: %s", token)
 	}
 
 	if currentToken.Type == LEFT_BRACE || currentToken.Type == LEFT_BRACKET {
@@ -88,7 +93,8 @@ func (p *Parser) parseValue() error {
 
 		currentToken = p.Tokens[p.position]
 		if !slices.Contains(canFollowValue, currentToken.Type) {
-			return fmt.Errorf("unexpected token after value: '%s'", currentToken.Type)
+			token := p.Tokens[p.position]
+			return fmt.Errorf("unexpected token after value: %s", token)
 		}
 	} else {
 		if err := p.safeIncrementPosition(); err != nil {
@@ -118,12 +124,16 @@ func (p *Parser) parseArray() error {
 		}
 	}
 
-	if p.Tokens[p.position].Type != RIGHT_BRACKET {
-		return fmt.Errorf("wrong token type instead of ']': %s", p.Tokens[p.position].Type)
+	token := p.Tokens[p.position]
+
+	if token.Type != RIGHT_BRACKET {
+		return fmt.Errorf("no closing ']': found %s instead", token)
 	}
 
-	if p.Tokens[p.position-1].Type == COMMA {
-		return fmt.Errorf("trailing ',' in array")
+	token = p.Tokens[p.position-1]
+
+	if token.Type == COMMA {
+		return fmt.Errorf("trailing ',' in array: %s", token)
 	}
 
 	p.position++
@@ -131,19 +141,19 @@ func (p *Parser) parseArray() error {
 }
 
 func (p *Parser) parsePair() error {
-	currentToken := p.Tokens[p.position]
+	token := p.Tokens[p.position]
 
-	if currentToken.Type != STRING {
-		return fmt.Errorf("no key found, '%v' instead", currentToken.Type)
+	if token.Type != STRING {
+		return fmt.Errorf("no key: found %s instead", token)
 	}
 
 	if err := p.safeIncrementPosition(); err != nil {
 		return err
 	}
-	currentToken = p.Tokens[p.position]
+	token = p.Tokens[p.position]
 
-	if currentToken.Type != COLON {
-		return fmt.Errorf("no ':' after key, found '%v' instead", currentToken.Type)
+	if token.Type != COLON {
+		return fmt.Errorf("no ':' after key: found %s instead", token)
 	}
 
 	if err := p.safeIncrementPosition(); err != nil {
