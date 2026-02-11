@@ -1,6 +1,6 @@
 # Build Your Own XYZ
 
-A collection of small programs built as part of coding challenges from [codingchallenges.fyi](https://codingchallenges.fyi/challenges). Each project is an implementation of a classic tool or utility, written in Go.
+A collection of small programs built as part of coding challenges from [codingchallenges.fyi](https://codingchallenges.fyi/challenges/intro). Each project is an implementation of a classic tool or utility, written in Go.
 
 ## Projects
 
