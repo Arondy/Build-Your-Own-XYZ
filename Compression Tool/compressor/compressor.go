@@ -28,7 +28,7 @@ func GetCharactersFrequency(reader *bufio.Reader) (freqs map[byte]int, err error
 		}
 	}
 	if len(freqs) == 0 {
-		return freqs, fmt.Errorf("Файл пустой")
+		return freqs, fmt.Errorf("Empty file provided")
 	}
 
 	return freqs, nil
@@ -96,7 +96,7 @@ func LoadFreqs(file *bufio.Reader) (freqs map[byte]int, padding byte, err error)
 	return freqs, padding, nil
 }
 
-func fileExists(filename string) bool {
+func FileExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return false
@@ -105,10 +105,6 @@ func fileExists(filename string) bool {
 }
 
 func WriteEncodedContent(codes map[byte]string, reader *bufio.Reader, writer *bufio.Writer) (padding byte, err error) {
-	// if fileExists(outputFilename) {
-	// 	return fmt.Errorf("Файл %s уже существует!", outputFilename)
-	// }
-
 	bw := BitWriter{}
 	readBuffer := make([]byte, 4096)
 
@@ -231,7 +227,7 @@ func Encode(inputFilename, outputFilename string) error {
 	encSizeFmt := formatSize(encodedStats.Size())
 	compression := 1 - float32(encodedStats.Size())/float32(srcStats.Size())
 
-	fmt.Printf("Файл %s (%s) сжат в %s (%s), сжатие %1.f%%\n", inputFilename, srcSizeFmt, outputFilename, encSizeFmt, compression*100)
+	fmt.Printf("File %s (%s) compressed in %s (%s), compression is %1.f%%\n", inputFilename, srcSizeFmt, outputFilename, encSizeFmt, compression*100)
 	return nil
 }
 
@@ -298,6 +294,6 @@ func Decode(encodedFilename, outputFilename string) error {
 		return err
 	}
 
-	fmt.Printf("Файл %s восстановлен в %s\n", encodedFilename, outputFilename)
+	fmt.Printf("File %s decoded to %s\n", encodedFilename, outputFilename)
 	return nil
 }
