@@ -12,7 +12,7 @@ import (
 const asciiSymbolsNumber = 128
 const PaddingOffset = 1
 
-func GetCharactersFrequency(reader *bufio.Reader) (freqs map[byte]int, err error) {
+func getCharactersFrequency(reader *bufio.Reader) (freqs map[byte]int, err error) {
 	freqs = make(map[byte]int, asciiSymbolsNumber)
 	buffer := make([]byte, 4096)
 
@@ -40,7 +40,7 @@ func intToBytes(n int) []byte {
 	return bytes
 }
 
-func WriteFreqs(freqs map[byte]int, writer *bufio.Writer) error {
+func writeFreqs(freqs map[byte]int, writer *bufio.Writer) error {
 	err := writer.WriteByte(byte(len(freqs)))
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func WriteFreqs(freqs map[byte]int, writer *bufio.Writer) error {
 	return writer.Flush()
 }
 
-func LoadFreqs(file *bufio.Reader) (freqs map[byte]int, padding byte, err error) {
+func loadFreqs(file *bufio.Reader) (freqs map[byte]int, padding byte, err error) {
 	freqs = make(map[byte]int, 0)
 
 	lettersNumber, err := file.ReadByte()
@@ -96,23 +96,15 @@ func LoadFreqs(file *bufio.Reader) (freqs map[byte]int, padding byte, err error)
 	return freqs, padding, nil
 }
 
-func FileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-
-func WriteEncodedContent(codes map[byte]string, reader *bufio.Reader, writer *bufio.Writer) (padding byte, err error) {
+func writeEncodedContent(codes map[byte]HuffmanCode, reader *bufio.Reader, writer *bufio.Writer) (padding byte, err error) {
 	bw := BitWriter{}
 	readBuffer := make([]byte, 4096)
 
 	for {
 		n, err := reader.Read(readBuffer)
 		for i := range n {
-			str := codes[readBuffer[i]]
-			err := bw.writeToByte(str, writer)
+			code := codes[readBuffer[i]]
+			err := bw.writeToByte(code, writer)
 			if err != nil {
 				return 0, err
 			}
@@ -133,7 +125,7 @@ func WriteEncodedContent(codes map[byte]string, reader *bufio.Reader, writer *bu
 	return padding, err
 }
 
-func WritePadding(padding byte, writer *bufio.Writer) error {
+func writePadding(padding byte, writer *bufio.Writer) error {
 	if padding == 0 {
 		return nil
 	}
@@ -170,14 +162,14 @@ func Encode(inputFilename, outputFilename string) error {
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
-	freqs, err := GetCharactersFrequency(reader)
+	freqs, err := getCharactersFrequency(reader)
 	if err != nil {
 		return err
 	}
 
-	nodes := FreqsToNodes(freqs)
+	nodes := freqsToNodes(freqs)
 	root := BuildHuffmanTree(nodes)
-	codes := make(map[byte]string, len(nodes))
+	codes := make(map[byte]HuffmanCode, len(nodes))
 
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
@@ -185,7 +177,7 @@ func Encode(inputFilename, outputFilename string) error {
 	}
 	reader.Reset(file)
 
-	TraversePreorder(&root, codes, "")
+	TraversePreorder(&root, codes, HuffmanCode{})
 
 	outputFile, err := os.OpenFile(outputFilename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
@@ -194,12 +186,12 @@ func Encode(inputFilename, outputFilename string) error {
 	defer outputFile.Close()
 
 	writer := bufio.NewWriter(outputFile)
-	err = WriteFreqs(freqs, writer)
+	err = writeFreqs(freqs, writer)
 	if err != nil {
 		return err
 	}
 
-	padding, err := WriteEncodedContent(codes, reader, writer)
+	padding, err := writeEncodedContent(codes, reader, writer)
 	if err != nil {
 		return err
 	}
@@ -210,7 +202,7 @@ func Encode(inputFilename, outputFilename string) error {
 	}
 
 	writer.Reset(outputFile)
-	err = WritePadding(padding, writer)
+	err = writePadding(padding, writer)
 	if err != nil {
 		return err
 	}
@@ -264,12 +256,12 @@ func Decode(encodedFilename, outputFilename string) error {
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
-	freqs, padding, err := LoadFreqs(reader)
+	freqs, padding, err := loadFreqs(reader)
 	if err != nil {
 		return err
 	}
 
-	nodes := FreqsToNodes(freqs)
+	nodes := freqsToNodes(freqs)
 	root := BuildHuffmanTree(nodes)
 	br, err := NewBitReader(reader, padding)
 	node := &root

@@ -21,7 +21,7 @@ func TestFrequencies(t *testing.T) {
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
-	frequencies, err := GetCharactersFrequency(reader)
+	frequencies, err := getCharactersFrequency(reader)
 	if err != nil {
 		t.FailNow()
 	}
@@ -38,7 +38,7 @@ func TestSaveAndLoadFreqs(t *testing.T) {
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
-	freqs, err := GetCharactersFrequency(reader)
+	freqs, err := getCharactersFrequency(reader)
 	if err != nil {
 		t.FailNow()
 	}
@@ -50,7 +50,7 @@ func TestSaveAndLoadFreqs(t *testing.T) {
 	defer headerFile.Close()
 
 	writer := bufio.NewWriter(headerFile)
-	err = WriteFreqs(freqs, writer)
+	err = writeFreqs(freqs, writer)
 	if err != nil {
 		t.FailNow()
 	}
@@ -61,7 +61,7 @@ func TestSaveAndLoadFreqs(t *testing.T) {
 	}
 
 	reader2 := bufio.NewReader(headerFile)
-	freqs2, _, err := LoadFreqs(reader2)
+	freqs2, _, err := loadFreqs(reader2)
 	if err != nil {
 		t.FailNow()
 	}

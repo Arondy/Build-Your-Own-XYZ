@@ -10,22 +10,43 @@ type BitWriter struct {
 	count int
 }
 
-func (bw *BitWriter) writeToByte(bitstr string, writer *bufio.Writer) error {
-	for _, bit := range bitstr {
-		bw._byte = bw._byte << 1
-		if bit == '1' {
-			bw._byte = bw._byte | 1
-		}
-		bw.count++
+func (bw *BitWriter) writeToByte(code HuffmanCode, writer *bufio.Writer) error {
+	for ind, _byte := range code.bytes {
+		bitsCount := 8
 
-		if bw.count == 8 {
-			err := writer.WriteByte(bw._byte)
-			if err != nil {
+		if ind == len(code.bytes)-1 {
+			bitsCount = code.lastBitsCount
+			if bitsCount == 0 {
+				continue
+			}
+		}
+
+		if bw.count+bitsCount <= 8 {
+			src := bw._byte << bitsCount
+			add := _byte >> (8 - bitsCount)
+			bw._byte = src | add
+			bw.count += bitsCount
+
+			if bw.count == 8 {
+				if err := writer.WriteByte(bw._byte); err != nil {
+					return err
+				}
+				bw.count = 0
+			}
+		} else {
+			canFit := 8 - bw.count
+			src := bw._byte << canFit
+			add := _byte >> (8 - canFit)
+
+			out := src | add
+			if err := writer.WriteByte(out); err != nil {
 				return err
 			}
 
-			bw.count = 0
-			bw._byte = 0
+			remBits := bitsCount - canFit
+			var mask byte = (1 << remBits) - 1
+			bw._byte = (_byte >> (8 - bitsCount)) & mask
+			bw.count = remBits
 		}
 	}
 	return nil

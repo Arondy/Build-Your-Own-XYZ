@@ -5,8 +5,37 @@ import (
 )
 
 type HuffmanCode struct {
-	Letter byte
-	Code   string
+	bytes         []byte
+	lastBitsCount int
+}
+
+func (hc HuffmanCode) addBit(bit byte) HuffmanCode {
+	if hc.lastBitsCount == 8 || len(hc.bytes) == 0 {
+		hc.bytes = append(hc.bytes, 0)
+		hc.lastBitsCount = 0
+	} else {
+		newBytes := make([]byte, len(hc.bytes))
+		copy(newBytes, hc.bytes)
+		hc.bytes = newBytes
+	}
+
+	hc.bytes[len(hc.bytes)-1] = hc.bytes[len(hc.bytes)-1] << 1
+
+	if bit == 1 {
+		hc.bytes[len(hc.bytes)-1] = hc.bytes[len(hc.bytes)-1] | 1
+	}
+
+	hc.lastBitsCount++
+	return hc
+}
+
+func (hc HuffmanCode) flush() HuffmanCode {
+	if hc.lastBitsCount == 0 {
+		return hc
+	}
+
+	hc.bytes[len(hc.bytes)-1] = hc.bytes[len(hc.bytes)-1] << (8 - hc.lastBitsCount)
+	return hc
 }
 
 type Node struct {
@@ -19,7 +48,7 @@ func (n Node) isLeaf() bool {
 	return n.Left == nil && n.Right == nil
 }
 
-func FreqsToNodes(freqs map[byte]int) []Node {
+func freqsToNodes(freqs map[byte]int) []Node {
 	nodes := make([]Node, 0, len(freqs))
 
 	for letter, freq := range freqs {
@@ -65,19 +94,20 @@ func BuildHuffmanTree(heap []Node) Node {
 	return newIntNode
 }
 
-func TraversePreorder(root *Node, codes map[byte]string, currentCode string) {
+func TraversePreorder(root *Node, codes map[byte]HuffmanCode, currentCode HuffmanCode) {
 	if root == nil {
 		return
 	}
 
 	if root.isLeaf() {
-		if currentCode == "" {
-			currentCode = "0"
+		if len(currentCode.bytes) == 0 {
+			currentCode = currentCode.addBit(0)
 		}
+		currentCode.flush()
 		codes[root.Letter] = currentCode
 		return
 	}
 
-	TraversePreorder(root.Left, codes, currentCode+"0")
-	TraversePreorder(root.Right, codes, currentCode+"1")
+	TraversePreorder(root.Left, codes, currentCode.addBit(0))
+	TraversePreorder(root.Right, codes, currentCode.addBit(1))
 }

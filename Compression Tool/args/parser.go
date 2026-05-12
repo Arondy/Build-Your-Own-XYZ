@@ -4,6 +4,7 @@ import (
 	"compression_tool/compressor"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -17,6 +18,14 @@ func askForConfirmation(prompt string, args ...any) bool {
 	fmt.Scanln(&response)
 
 	return response == "y" || response == "Y" || response == ""
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
 
 func Parse() error {
@@ -38,11 +47,11 @@ func Parse() error {
 		return fmt.Errorf("You haven't provided input file")
 	}
 
-	if !compressor.FileExists(*inputFileFlag) {
+	if !fileExists(*inputFileFlag) {
 		return fmt.Errorf("Input file doesn't exist: '%s'", *inputFileFlag)
 	}
 
-	if !*forceOverwriteFlag && compressor.FileExists(*outputFileFlag) {
+	if !*forceOverwriteFlag && fileExists(*outputFileFlag) {
 		overwriteConfirmed := askForConfirmation("Output file '%s' already exists. Are you sure you want to overwrite it?\n[Y/n] ", *outputFileFlag)
 		if !overwriteConfirmed {
 			return nil
