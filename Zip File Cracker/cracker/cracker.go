@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/yeka/zip"
 )
@@ -76,7 +77,7 @@ func (c Cracker) CheckPassword(password string) error {
 		r.Close()
 
 		if err != nil {
-			return fmt.Errorf("password is incorrect: %w", err)
+			return err
 		}
 	}
 
@@ -104,4 +105,40 @@ func (c Cracker) CheckWordlist(filename string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no password from the list is correct")
+}
+
+func (c Cracker) generatePasswords(pos int, password []byte) string {
+	if pos == len(password) {
+		err := c.CheckPassword(string(password))
+		if err == nil {
+			return string(password)
+		}
+		return ""
+	}
+
+	// for i := 97; i <= 122; i++ {
+	for i := 33; i <= 126; i++ {
+		password[pos] = byte(i)
+		pass := c.generatePasswords(pos+1, password)
+		if pass != "" {
+			return pass
+		}
+	}
+
+	return ""
+}
+
+func (c Cracker) Bruteforce(min, max int) (string, error) {
+	s := time.Now()
+	for lettersNum := min; lettersNum <= max; lettersNum++ {
+		buffer := make([]byte, lettersNum)
+
+		password := c.generatePasswords(0, buffer)
+		if password != "" {
+			fmt.Printf("Found correct password in %v: %s", time.Since(s), password)
+			return password, nil
+		}
+	}
+
+	return "", fmt.Errorf("no password with length [%d, %d] is correct, searched for %v", min, max, time.Since(s))
 }

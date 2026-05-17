@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"zip_file_cracker/cracker"
 )
 
@@ -10,9 +9,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	password, err := c.CheckWordlist("wordlist.txt")
+	_, err = c.Bruteforce(1, 3)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(password)
 }
