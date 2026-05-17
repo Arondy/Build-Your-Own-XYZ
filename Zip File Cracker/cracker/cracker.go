@@ -3,6 +3,7 @@ package cracker
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/yeka/zip"
@@ -70,12 +71,12 @@ func (c Cracker) CheckPassword(password string) error {
 		if err != nil {
 			return err
 		}
-		defer r.Close()
 
-		buffer := make([]byte, 1)
-		_, err = r.Read(buffer)
+		_, err = io.Copy(io.Discard, r)
+		r.Close()
+
 		if err != nil {
-			return err
+			return fmt.Errorf("password is incorrect: %w", err)
 		}
 	}
 
