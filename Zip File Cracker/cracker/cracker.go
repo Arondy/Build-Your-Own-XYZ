@@ -82,3 +82,26 @@ func (c Cracker) CheckPassword(password string) error {
 
 	return nil
 }
+
+func (c Cracker) CheckWordlist(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", nil
+	}
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		password := scanner.Text()
+		passErr := c.CheckPassword(password)
+		if passErr == nil {
+			return password, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", fmt.Errorf("no password from the list is correct")
+}

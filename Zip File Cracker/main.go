@@ -10,10 +10,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = c.CheckPassword("test")
+	password, err := c.CheckWordlist("wordlist.txt")
 	if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("Correct password found!")
 	}
+	fmt.Println(password)
 }
