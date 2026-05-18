@@ -2,15 +2,25 @@ package cracker
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/yeka/zip"
 )
 
 var zipHeader = [4]byte{80, 75, 03, 04}
+
+// lowercase english characters
+const asciiStart = 97
+const asciiEnd = 123
+
+// const asciiStart = 33
+// const asciiEnd = 127
 
 func fileExists(filename string) bool {
 	info, err := os.Stat(filename)
@@ -47,22 +57,32 @@ func isZipFile(filename string) bool {
 }
 
 type Cracker struct {
-	reader *zip.ReadCloser
+	filename string
 }
 
 func NewCracker(filename string) (Cracker, error) {
 	if !isZipFile(filename) {
 		return Cracker{}, fmt.Errorf("'%s' isn't a valid ZIP file!", filename)
 	}
-	reader, err := zip.OpenReader(filename)
-	if err != nil {
-		return Cracker{}, err
-	}
-	return Cracker{reader}, nil
+	return Cracker{filename}, nil
 }
 
-func (c Cracker) CheckPassword(password string) error {
-	for _, file := range c.reader.File {
+func (c Cracker) createReaders(num int) ([]*zip.ReadCloser, error) {
+	readers := make([]*zip.ReadCloser, 0, num)
+
+	for range num {
+		reader, err := zip.OpenReader(c.filename)
+		if err != nil {
+			return nil, err
+		}
+		readers = append(readers, reader)
+	}
+
+	return readers, nil
+}
+
+func (c Cracker) CheckPassword(reader *zip.ReadCloser, password string) error {
+	for _, file := range reader.File {
 		if !file.IsEncrypted() {
 			continue
 		}
@@ -87,14 +107,19 @@ func (c Cracker) CheckPassword(password string) error {
 func (c Cracker) CheckWordlist(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return "", nil
+		return "", err
+	}
+
+	reader, err := zip.OpenReader(c.filename)
+	if err != nil {
+		return "", err
 	}
 
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
 		password := scanner.Text()
-		passErr := c.CheckPassword(password)
+		passErr := c.CheckPassword(reader, password)
 		if passErr == nil {
 			return password, nil
 		}
@@ -107,34 +132,58 @@ func (c Cracker) CheckWordlist(filename string) (string, error) {
 	return "", fmt.Errorf("no password from the list is correct")
 }
 
-func (c Cracker) generatePasswords(pos int, password []byte) string {
+func (c Cracker) generatePasswords(ctx context.Context, results chan<- string, reader *zip.ReadCloser, pos, start, end int, password []byte) {
 	if pos == len(password) {
-		err := c.CheckPassword(string(password))
+		err := c.CheckPassword(reader, string(password))
 		if err == nil {
-			return string(password)
+			results <- string(password)
 		}
-		return ""
+		return
 	}
 
-	// for i := 97; i <= 122; i++ {
-	for i := 33; i <= 126; i++ {
+	for i := start; i < end; i++ {
+		if ctx.Err() != nil {
+			return
+		}
+
 		password[pos] = byte(i)
-		pass := c.generatePasswords(pos+1, password)
-		if pass != "" {
-			return pass
-		}
+		c.generatePasswords(ctx, results, reader, pos+1, asciiStart, asciiEnd, password)
 	}
-
-	return ""
 }
 
 func (c Cracker) Bruteforce(min, max int) (string, error) {
 	s := time.Now()
-	for lettersNum := min; lettersNum <= max; lettersNum++ {
-		buffer := make([]byte, lettersNum)
 
-		password := c.generatePasswords(0, buffer)
-		if password != "" {
+	cores := runtime.NumCPU()
+	wg := sync.WaitGroup{}
+	readers, err := c.createReaders(cores)
+	if err != nil {
+		return "", err
+	}
+
+	for lettersNum := min; lettersNum <= max; lettersNum++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		results := make(chan string)
+
+		for i := range cores {
+			start := asciiStart + (asciiEnd-asciiStart)*i/cores
+			end := asciiStart + (asciiEnd-asciiStart)*(i+1)/cores
+			buffer := make([]byte, lettersNum)
+
+			wg.Go(func() {
+				c.generatePasswords(ctx, results, readers[i], 0, start, end, buffer)
+			})
+		}
+
+		go func() {
+			wg.Wait()
+			close(results)
+		}()
+
+		password, ok := <-results
+		cancel()
+
+		if ok {
 			fmt.Printf("Found correct password in %v: %s", time.Since(s), password)
 			return password, nil
 		}
