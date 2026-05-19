@@ -57,7 +57,7 @@ func isZipFile(filename string) bool {
 }
 
 type Cracker struct {
-	filename string
+	Filename string
 }
 
 func NewCracker(filename string) (Cracker, error) {
@@ -71,7 +71,7 @@ func (c Cracker) createReaders(num int) ([]*zip.ReadCloser, error) {
 	readers := make([]*zip.ReadCloser, 0, num)
 
 	for range num {
-		reader, err := zip.OpenReader(c.filename)
+		reader, err := zip.OpenReader(c.Filename)
 		if err != nil {
 			return nil, err
 		}
@@ -104,32 +104,87 @@ func (c Cracker) CheckPassword(reader *zip.ReadCloser, password string) error {
 	return nil
 }
 
-func (c Cracker) CheckWordlist(filename string) (string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return "", err
-	}
+func (c Cracker) wordlistWorker(ctx context.Context, reader *zip.ReadCloser, passwords <-chan string, results chan<- string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case password, ok := <-passwords:
+			if !ok {
+				return
+			}
 
-	reader, err := zip.OpenReader(c.filename)
-	if err != nil {
-		return "", err
+			err := c.CheckPassword(reader, password)
+			if err == nil {
+				results <- password
+			}
+		}
 	}
+}
 
-	scanner := bufio.NewScanner(file)
+func (c Cracker) wordlistProducer(ctx context.Context, scanner *bufio.Scanner, passwords chan<- string) {
+	defer close(passwords)
 
 	for scanner.Scan() {
-		password := scanner.Text()
-		passErr := c.CheckPassword(reader, password)
-		if passErr == nil {
-			return password, nil
+		select {
+		case <-ctx.Done():
+			return
+		case passwords <- scanner.Text():
 		}
+	}
+}
+
+func (c Cracker) WordlistAttack(wordlist string) (string, error) {
+	s := time.Now()
+
+	file, err := os.Open(wordlist)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	passwords := make(chan string, 8)
+	results := make(chan string)
+	scanner := bufio.NewScanner(file)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cores := runtime.NumCPU()
+	wg := sync.WaitGroup{}
+
+	wg.Go(func() {
+		c.wordlistProducer(ctx, scanner, passwords)
+	})
+
+	for range cores - 1 {
+		reader, err := zip.OpenReader(c.Filename)
+		if err != nil {
+			return "", err
+		}
+		defer reader.Close()
+
+		wg.Go(func() {
+			c.wordlistWorker(ctx, reader, passwords, results)
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	password, ok := <-results
+	cancel() // for no race in scanner.Err() check
+
+	if ok {
+		fmt.Printf("Found correct password in %v: %s", time.Since(s), password)
+		return password, nil
 	}
 
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
 
-	return "", fmt.Errorf("no password from the list is correct")
+	return "", fmt.Errorf("no password from the list '%s' is correct, searched for %s", wordlist, time.Since(s))
 }
 
 func (c Cracker) generatePasswords(ctx context.Context, results chan<- string, reader *zip.ReadCloser, pos, start, end int, password []byte) {
@@ -163,6 +218,7 @@ func (c Cracker) Bruteforce(min, max int) (string, error) {
 
 	for lettersNum := min; lettersNum <= max; lettersNum++ {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		results := make(chan string)
 
 		for i := range cores {
@@ -181,7 +237,6 @@ func (c Cracker) Bruteforce(min, max int) (string, error) {
 		}()
 
 		password, ok := <-results
-		cancel()
 
 		if ok {
 			fmt.Printf("Found correct password in %v: %s", time.Since(s), password)
@@ -189,5 +244,5 @@ func (c Cracker) Bruteforce(min, max int) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no password with length [%d, %d] is correct, searched for %v", min, max, time.Since(s))
+	return "", fmt.Errorf("no password with length [%d, %d] is correct, searched for %s", min, max, time.Since(s))
 }
