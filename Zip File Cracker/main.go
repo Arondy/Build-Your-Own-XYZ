@@ -1,16 +1,13 @@
 package main
 
 import (
-	"zip_file_cracker/cracker"
+	"fmt"
+	"zip_file_cracker/args"
 )
 
 func main() {
-	c, err := cracker.NewCracker("test.zip")
+	err := args.Parse()
 	if err != nil {
-		panic(err)
-	}
-	_, err = c.Bruteforce(1, 3)
-	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 }
